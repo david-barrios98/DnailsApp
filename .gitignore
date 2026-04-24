@@ -36,6 +36,16 @@ pnpm-debug.log*
 **/prisma/dev.db
 **/prisma/dev*.db
 **/prisma/*.db-journal
+**/prisma/*.db-wal
+**/prisma/*.db-shm
+
+# SQLite anywhere (local/dev artifacts)
+**/*.sqlite
+**/*.sqlite3
+
+# OS metadata (Windows)
+ehthumbs.db
+$RECYCLE.BIN/
 
 # Test / coverage
 **/coverage/
