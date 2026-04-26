@@ -6,6 +6,27 @@ import { seedServices } from "../seed/seedServices.js";
 
 type CsvRow = Record<string, string>;
 
+/**
+ * Acepta el enlace "Publicar en la web" (a veces termina en /pubhtml) y lo deja listo para fetch como CSV.
+ */
+function googleSheetPublishUrlToCsv(raw: string): string {
+  const s = raw.trim();
+  if (!s) return s;
+  try {
+    const u = new URL(s);
+    if (u.hostname !== "docs.google.com") return s;
+    if (u.pathname.includes("/pubhtml")) {
+      u.pathname = u.pathname.replace("/pubhtml", "/pub");
+    }
+    if (!u.searchParams.get("output")) {
+      u.searchParams.set("output", "csv");
+    }
+    return u.toString();
+  } catch {
+    return s;
+  }
+}
+
 function normalizeHeader(s: string): string {
   // Quita emojis/símbolos, acentos, y normaliza espacios para que el import no dependa
   // del encabezado exacto del Form (que incluye emojis y a veces espacios raros).
@@ -85,25 +106,16 @@ function parseRequestedStartAt(dateText: string, timeText: string): Date | null 
   return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
-async function upsertCustomer(fullName: string | null, phoneE164: string | null) {
+/**
+ * Un cliente = una persona; el identificador único de negocio es el teléfono en E.164.
+ * `upsert` evita filas duplicadas del mismo número al sincronizar el Sheet.
+ */
+async function upsertCustomerByPhone(fullName: string | null, phoneE164: string) {
   const cleanedName = cleanPersonName(fullName) || "Sin nombre";
-
-  if (phoneE164) {
-    return prisma.customer.upsert({
-      where: { phoneE164 },
-      update: {
-        fullName: cleanedName,
-      },
-      create: {
-        fullName: cleanedName,
-        phoneE164,
-      },
-    });
-  }
-
-  // Sin teléfono no podemos deduplicar bien: creamos cliente suelto.
-  return prisma.customer.create({
-    data: { fullName: cleanedName },
+  return prisma.customer.upsert({
+    where: { phoneE164 },
+    update: { fullName: cleanedName },
+    create: { fullName: cleanedName, phoneE164 },
   });
 }
 
@@ -120,14 +132,18 @@ async function upsertNeighborhood(locality: string | null, neighborhood: string 
 }
 
 async function main() {
-  if (!env.GOOGLE_SHEET_CSV_URL) {
-    throw new Error("Falta GOOGLE_SHEET_CSV_URL en el .env");
+  if (!env.GOOGLE_SHEET_CSV_URL?.trim()) {
+    throw new Error(
+      "GOOGLE_SHEET_CSV_URL está vacío en .env. En Google Sheet: Archivo → Compartir → Publicar en la web → CSV, y pega esa URL (o /pub?...&output=csv).",
+    );
   }
+
+  const sheetUrl = googleSheetPublishUrlToCsv(env.GOOGLE_SHEET_CSV_URL);
 
   // Semilla de servicios para que el import pueda mapear nombres -> serviceId.
   await seedServices();
 
-  const csvText = await fetch(env.GOOGLE_SHEET_CSV_URL).then((r: Response) => {
+  const csvText = await fetch(sheetUrl).then((r: Response) => {
     if (!r.ok) throw new Error(`CSV fetch failed: ${r.status}`);
     return r.text();
   });
@@ -151,8 +167,19 @@ async function main() {
 
   let created = 0;
   let skipped = 0;
+  let skippedNoPhone = 0;
 
   for (const row of rows) {
+    const { get } = rowGetter(row);
+    const leadName = cleanPersonName(get("¿Quién agenda?", "Quien agenda")) || null;
+    const leadPhone = normalizePhoneE164(get("Número de WhatsApp.", "Número de WhatsApp", "Numero de WhatsApp")) ?? null;
+
+    if (!leadPhone) {
+      // Sin teléfono no hay clave única: no importamos (evita cientos de "Sin nombre" duplicados).
+      skippedNoPhone++;
+      continue;
+    }
+
     const key = stableSourceKey(row);
     if (!key) {
       skipped++;
@@ -166,12 +193,7 @@ async function main() {
       continue;
     }
 
-    const { get } = rowGetter(row);
-
-    const leadName = cleanPersonName(get("¿Quién agenda?", "Quien agenda")) || null;
-    const leadPhone = normalizePhoneE164(get("Número de WhatsApp.", "Número de WhatsApp", "Numero de WhatsApp")) ?? null;
-
-    const customer = await upsertCustomer(leadName, leadPhone);
+    const customer = await upsertCustomerByPhone(leadName, leadPhone);
 
     const rawAddress =
       get("Dirección exacta", "Direccion exacta", "Dirección", "Direccion", "Ubicación", "Ubicacion") || "Pendiente por confirmar";
@@ -248,7 +270,7 @@ async function main() {
   }
 
   // eslint-disable-next-line no-console
-  console.log({ created, skipped, total: rows.length });
+  console.log({ created, skipped, skippedNoPhone, total: rows.length });
 }
 
 main()

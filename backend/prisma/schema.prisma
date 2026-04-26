@@ -11,120 +11,132 @@ datasource db {
 // Luego puede migrar 1:1 a Postgres (Supabase) sin cambiar el modelo.
 
 model ServiceCategory {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique // UÑAS | DEPILACION | CEJAS_Y_PESTANAS
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        Int      @id @default(autoincrement()) @map("id")
+  code      String   @unique @map("codigo") // UÑAS | DEPILACION | CEJAS_Y_PESTANAS
+  name      String   @map("nombre")
+  createdAt DateTime @default(now()) @map("creado_en")
+  updatedAt DateTime @updatedAt @map("actualizado_en")
 
   services Service[]
+
+  @@map("categoria_servicio")
 }
 
 model Neighborhood {
-  id         Int      @id @default(autoincrement())
-  locality   String
-  name       String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id         Int      @id @default(autoincrement()) @map("id")
+  locality   String   @map("localidad")
+  name       String   @map("nombre")
+  createdAt  DateTime @default(now()) @map("creado_en")
+  updatedAt  DateTime @updatedAt @map("actualizado_en")
 
   addresses Address[]
 
   @@unique([locality, name])
   @@index([locality])
+  @@map("barrio")
 }
 
 model Role {
-  id        Int      @id @default(autoincrement())
-  code      RoleCode @unique
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        Int      @id @default(autoincrement()) @map("id")
+  code      RoleCode @unique @map("codigo")
+  name      String   @map("nombre")
+  createdAt DateTime @default(now()) @map("creado_en")
+  updatedAt DateTime @updatedAt @map("actualizado_en")
 
   users UserRole[]
+
+  @@map("rol")
 }
 
 model User {
-  id           Int        @id @default(autoincrement())
-  email        String     @unique
-  passwordHash String
-  fullName     String
-  phoneE164    String?    @unique
-  status       UserStatus @default(ACTIVE)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id           Int        @id @default(autoincrement()) @map("id")
+  email        String     @unique @map("correo")
+  passwordHash String     @map("hash_contrasena")
+  fullName     String     @map("nombre_completo")
+  phoneE164    String?    @unique @map("telefono_e164")
+  status       UserStatus @default(ACTIVE) @map("estado")
+  createdAt    DateTime   @default(now()) @map("creado_en")
+  updatedAt    DateTime   @updatedAt @map("actualizado_en")
 
   roles UserRole[]
   auditLogs AuditLog[]
+
+  @@map("usuario")
 }
 
 model UserRole {
-  userId Int
-  roleId Int
+  userId Int @map("usuario_id")
+  roleId Int @map("rol_id")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
   @@index([roleId])
+  @@map("usuario_rol")
 }
 
 model AuditLog {
-  id         Int      @id @default(autoincrement())
-  actorUserId Int?
-  action     String
-  entity     String
-  entityId   Int?
-  metadata   Json?
-  createdAt  DateTime @default(now())
+  id          Int      @id @default(autoincrement()) @map("id")
+  actorUserId Int?     @map("actor_usuario_id")
+  action      String   @map("accion")
+  entity      String   @map("entidad")
+  entityId    Int?     @map("entidad_id")
+  metadata    Json?    @map("metadatos")
+  createdAt   DateTime @default(now()) @map("creado_en")
 
   actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@index([entity, entityId])
+  @@map("auditoria")
 }
 
 model Customer {
-  id        Int      @id @default(autoincrement())
-  fullName  String
-  phoneE164 String?  @unique
-  email     String?  @unique
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        Int      @id @default(autoincrement()) @map("id")
+  fullName  String   @map("nombre_completo")
+  phoneE164 String?  @unique @map("telefono_e164")
+  email     String?  @unique @map("correo")
+  notes     String?  @map("notas")
+  createdAt DateTime @default(now()) @map("creado_en")
+  updatedAt DateTime @updatedAt @map("actualizado_en")
 
   addresses Address[]
   appointments Appointment[]
+
+  @@map("cliente")
 }
 
 model Address {
-  id          Int      @id @default(autoincrement())
-  customerId  Int?
-  neighborhoodId Int?
-  label       String?
-  line1       String
-  mapsUrl     String?
-  latitude    Float?
-  longitude   Float?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             Int      @id @default(autoincrement()) @map("id")
+  customerId     Int?     @map("cliente_id")
+  neighborhoodId Int?     @map("barrio_id")
+  label          String?  @map("etiqueta")
+  line1          String   @map("direccion_linea1")
+  mapsUrl        String?  @map("maps_url")
+  latitude       Float?   @map("latitud")
+  longitude      Float?   @map("longitud")
+  createdAt      DateTime @default(now()) @map("creado_en")
+  updatedAt      DateTime @updatedAt @map("actualizado_en")
 
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   neighborhood Neighborhood? @relation(fields: [neighborhoodId], references: [id], onDelete: SetNull)
   appointments Appointment[]
 
   @@index([neighborhoodId])
+  @@map("direccion")
 }
 
 model Service {
-  id          Int      @id @default(autoincrement())
-  categoryId  Int
-  name        String
+  id          Int      @id @default(autoincrement()) @map("id")
+  categoryId  Int      @map("categoria_id")
+  name        String   @map("nombre")
   // duración estimada en minutos (rango) para agendamiento
-  durationMin Int
-  durationMax Int
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  durationMin Int      @map("duracion_min")
+  durationMax Int      @map("duracion_max")
+  isActive    Boolean  @default(true) @map("activo")
+  createdAt   DateTime @default(now()) @map("creado_en")
+  updatedAt   DateTime @updatedAt @map("actualizado_en")
 
   category ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   prices   ServicePrice[]
@@ -132,55 +144,59 @@ model Service {
   actual AppointmentActualService[]
 
   @@unique([categoryId, name])
+  @@map("servicio")
 }
 
 // Normalización de precios: el precio puede cambiar sin reescribir el catálogo.
 model ServicePrice {
-  id         Int      @id @default(autoincrement())
-  serviceId  Int
-  amountCOP  Int
-  currency   String   @default("COP")
-  effectiveFrom DateTime @default(now())
-  effectiveTo   DateTime?
-  createdAt  DateTime @default(now())
+  id            Int      @id @default(autoincrement()) @map("id")
+  serviceId     Int      @map("servicio_id")
+  amountCOP     Int      @map("monto_cop")
+  currency      String   @default("COP") @map("moneda")
+  effectiveFrom DateTime @default(now()) @map("vigente_desde")
+  effectiveTo   DateTime? @map("vigente_hasta")
+  createdAt     DateTime @default(now()) @map("creado_en")
 
   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@index([serviceId, effectiveFrom])
+  @@map("servicio_precio")
 }
 
 model FormSubmission {
-  id        Int      @id @default(autoincrement())
-  sourceKey String   @unique
-  payload   Json
-  createdAt DateTime @default(now())
+  id        Int      @id @default(autoincrement()) @map("id")
+  sourceKey String   @unique @map("llave_origen")
+  payload   Json     @map("payload")
+  createdAt DateTime @default(now()) @map("creado_en")
 
   appointment Appointment?
+
+  @@map("formulario_envio")
 }
 
 model Appointment {
-  id            Int      @id @default(autoincrement())
-  customerId    Int
-  addressId     Int?
-  startAt       DateTime?
-  endAt         DateTime?
+  id            Int      @id @default(autoincrement()) @map("id")
+  customerId    Int      @map("cliente_id")
+  addressId     Int?     @map("direccion_id")
+  startAt       DateTime? @map("inicio_en")
+  endAt         DateTime? @map("fin_en")
   // Preferencias del cliente desde el Form (antes de confirmación de ruta)
-  requestedStartAt   DateTime?
-  requestedTimeText  String?
-  requestedFlexible  Boolean?
+  requestedStartAt   DateTime? @map("solicitado_inicio_en")
+  requestedTimeText  String?   @map("solicitado_hora_texto")
+  requestedFlexible  Boolean?  @map("solicitado_flexible")
   // "lead" puede ser quien agenda, aunque el servicio sea para otra(s) persona(s)
-  leadName      String?
-  leadPhoneE164 String?
+  leadName      String? @map("lead_nombre")
+  leadPhoneE164 String? @map("lead_telefono_e164")
 
-  status        AppointmentStatus @default(PENDING)
-  notes         String?
+  status        AppointmentStatus @default(PENDING) @map("estado")
+  notes         String? @map("notas")
 
   // Control de origen (para trazabilidad con Google Forms/Sheets)
-  source        String   @default("google_form")
-  formSubmissionId Int? @unique
+  source           String   @default("google_form") @map("origen")
+  formSubmissionId Int?     @unique @map("formulario_envio_id")
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @map("creado_en")
+  updatedAt     DateTime @updatedAt @map("actualizado_en")
 
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
   address  Address?  @relation(fields: [addressId], references: [id], onDelete: SetNull)
@@ -192,67 +208,73 @@ model Appointment {
   payments Payment[]
 
   @@index([status, startAt])
+  @@map("cita")
 }
 
 model AppointmentParticipant {
-  id            Int      @id @default(autoincrement())
-  appointmentId Int
-  fullName      String?
+  id            Int      @id @default(autoincrement()) @map("id")
+  appointmentId Int      @map("cita_id")
+  fullName      String?  @map("nombre_completo")
   // Ej: "para mí", "para alguien más", "grupo"
-  roleLabel     String?
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  roleLabel     String?  @map("rol_etiqueta")
+  notes         String?  @map("notas")
+  createdAt     DateTime @default(now()) @map("creado_en")
+  updatedAt     DateTime @updatedAt @map("actualizado_en")
 
   appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@map("cita_participante")
 }
 
 model AppointmentPlannedService {
-  id            Int      @id @default(autoincrement())
-  appointmentId Int
-  serviceId     Int
-  quantity      Int      @default(1)
-  priceCOP      Int?
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id            Int      @id @default(autoincrement()) @map("id")
+  appointmentId Int      @map("cita_id")
+  serviceId     Int      @map("servicio_id")
+  quantity      Int      @default(1) @map("cantidad")
+  priceCOP      Int?     @map("precio_cop")
+  notes         String?  @map("notas")
+  createdAt     DateTime @default(now()) @map("creado_en")
+  updatedAt     DateTime @updatedAt @map("actualizado_en")
 
   appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   service     Service     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
 
   @@unique([appointmentId, serviceId])
+  @@map("cita_servicio_planeado")
 }
 
 model AppointmentActualService {
-  id            Int      @id @default(autoincrement())
-  appointmentId Int
-  serviceId     Int
-  quantity      Int      @default(1)
-  priceCOP      Int?
+  id            Int      @id @default(autoincrement()) @map("id")
+  appointmentId Int      @map("cita_id")
+  serviceId     Int      @map("servicio_id")
+  quantity      Int      @default(1) @map("cantidad")
+  priceCOP      Int?     @map("precio_cop")
   // Si fue agregado en domicilio o cambió respecto a lo planeado
-  origin        ActualServiceOrigin @default(ON_SITE_ADDED)
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  origin        ActualServiceOrigin @default(ON_SITE_ADDED) @map("origen")
+  notes         String?  @map("notas")
+  createdAt     DateTime @default(now()) @map("creado_en")
+  updatedAt     DateTime @updatedAt @map("actualizado_en")
 
   appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   service     Service     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
 
   @@index([appointmentId])
+  @@map("cita_servicio_real")
 }
 
 model Payment {
-  id            Int      @id @default(autoincrement())
-  appointmentId Int
-  amountCOP     Int
-  method        PaymentMethod
-  paidAt        DateTime @default(now())
-  reference     String?
-  notes         String?
+  id            Int      @id @default(autoincrement()) @map("id")
+  appointmentId Int      @map("cita_id")
+  amountCOP     Int      @map("monto_cop")
+  method        PaymentMethod @map("metodo")
+  paidAt        DateTime @default(now()) @map("pagado_en")
+  reference     String?  @map("referencia")
+  notes         String?  @map("notas")
 
   appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
   @@index([paidAt])
+  @@map("pago")
 }
 
 enum AppointmentStatus {
