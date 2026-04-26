@@ -10,7 +10,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "import:sheet": "tsx src/import/sheetCsvImport.ts"
+    "import:sheet": "tsx src/import/sheetCsvImport.ts",
+    "user:seed": "tsx src/seed/seedPhoneUser.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",

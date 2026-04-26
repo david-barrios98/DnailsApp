@@ -1,5 +1,8 @@
+import "dotenv/config";
+import { $connectWithRetry } from "./lib/prisma.js";
 import { buildApp } from "./app.js";
 
+await $connectWithRetry();
 const app = await buildApp();
 
 const port = Number(process.env.PORT ?? 3333);

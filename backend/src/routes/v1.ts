@@ -83,20 +83,44 @@ export async function registerV1Routes(app: FastifyInstance) {
       {
         schema: {
           tags: ["auth"],
-          summary: "Login (JWT)",
+          summary: "Login (JWT) con teléfono o correo",
           body: {
             type: "object",
-            required: ["email", "password"],
-            properties: { email: { type: "string" }, password: { type: "string" } },
+            required: ["password"],
+            properties: {
+              email: { type: "string" },
+              phone: { type: "string" },
+              password: { type: "string" },
+            },
           },
         },
       },
       async (req, reply) => {
-        const body = z.object({ email: z.string().email(), password: z.string().min(1) }).parse(req.body);
-        const user = await prisma.user.findUnique({
-          where: { email: normalizeEmail(body.email)! },
-          include: { roles: { include: { role: true } } },
-        });
+        const body = z
+          .object({
+            email: z.string().email().optional(),
+            phone: z.string().min(1).optional(),
+            password: z.string().min(1),
+          })
+          .refine((b) => Boolean(b.email) !== Boolean(b.phone), {
+            message: "Debes enviar email o phone (no ambos ni ninguno).",
+          })
+          .parse(req.body);
+
+        let user = null;
+        if (body.email) {
+          user = await prisma.user.findUnique({
+            where: { email: normalizeEmail(body.email)! },
+            include: { roles: { include: { role: true } } },
+          });
+        } else {
+          const phoneE164 = normalizePhoneE164(body.phone!);
+          if (!phoneE164) return reply.code(400).send({ error: "invalid_phone" });
+          user = await prisma.user.findUnique({
+            where: { phoneE164 },
+            include: { roles: { include: { role: true } } },
+          });
+        }
         if (!user || user.status !== "ACTIVE") return reply.code(401).send({ error: "invalid_credentials" });
 
         const ok = await verifyPassword(body.password, user.passwordHash);

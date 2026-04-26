@@ -5,6 +5,7 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { authPlugin } from "./plugins/auth.js";
 import { registerV1Routes } from "./routes/v1.js";
+import { ensureDefaultDevUser } from "./seed/ensureDefaultDevUser.js";
 import { ensureRoles } from "./seed/ensureRoles.js";
 
 export async function buildApp() {
@@ -40,6 +41,7 @@ export async function buildApp() {
   await app.register(authPlugin);
 
   await ensureRoles();
+  await ensureDefaultDevUser();
 
   app.get(
     "/health",
